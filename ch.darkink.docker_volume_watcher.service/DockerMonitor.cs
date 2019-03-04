@@ -9,9 +9,12 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Timers;
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
-namespace ch.darkink.docker_volume_watcher {
-    public class DockerMonitor {
+namespace ch.darkink.docker_volume_watcher
+{
+    public class DockerMonitor
+    {
 
         public const String CONTAINER_STATE_RUNNING = "running";
         public const String MOUNT_POINT_MODE_BIND = "bind";
@@ -20,7 +23,7 @@ namespace ch.darkink.docker_volume_watcher {
         private Dictionary<String, IList<DockerNotifier>> m_ContainerNotifier;
         private Timer m_Timer;
         //private static readonly Object m_Lock = new Object();
-        private EventLog m_Log;
+        private ILogger m_Log;
         private Int32 m_PollingInterval;
         private Int32 m_OldPollingInterval;
         private Int32 m_DockerPollingErrorCount;
@@ -30,9 +33,10 @@ namespace ch.darkink.docker_volume_watcher {
 
         private Boolean m_FirstConnection;
 
-        public DockerMonitor(EventLog eventLog, Int32 pollingInterval, Boolean isIgnorefileMandatory, Int32 notifierAction, String dockerEndpoint) {
+        public DockerMonitor(ILogger eventLog, Int32 pollingInterval, Boolean isIgnorefileMandatory, Int32 notifierAction, String dockerEndpoint)
+        {
             m_OldPollingInterval = -1;
-            m_Log = eventLog;
+            m_Log = eventLog ?? throw new ArgumentNullException(nameof(eventLog));
 
             m_PollingInterval = pollingInterval;
             m_IsIgnorefileMandatory = isIgnorefileMandatory;
@@ -42,8 +46,10 @@ namespace ch.darkink.docker_volume_watcher {
             m_ContainerNotifier = new Dictionary<String, IList<DockerNotifier>>();
         }
 
-        public void Start() {
-            m_Timer = new Timer() {
+        public void Start()
+        {
+            m_Timer = new Timer()
+            {
                 Interval = m_PollingInterval,
                 AutoReset = true,
                 Enabled = false
@@ -54,8 +60,10 @@ namespace ch.darkink.docker_volume_watcher {
             LogMessage("Monitor started");
         }
 
-        public void Stop() {
-            if (m_Timer != null) {
+        public void Stop()
+        {
+            if (m_Timer != null)
+            {
                 m_Timer.Stop();
                 m_Timer.Elapsed -= M_Timer_Elapsed;
                 m_Timer.Dispose();
@@ -65,13 +73,18 @@ namespace ch.darkink.docker_volume_watcher {
             LogMessage("Monitor stopped");
         }
 
-        private void M_Timer_Elapsed(Object sender, ElapsedEventArgs e) {
+        private void M_Timer_Elapsed(Object sender, ElapsedEventArgs e)
+        {
             //lock (m_Lock) {
             IList<ContainerListResponse> newContainers = FindContainer();
-            if (newContainers != null) {
-                foreach (var item in m_ContainerNotifier.ToList()) {
-                    if (newContainers.Count(p => p.ID == item.Key) == 0) {
-                        foreach (DockerNotifier notifier in item.Value.ToList()) {
+            if (newContainers != null)
+            {
+                foreach (var item in m_ContainerNotifier.ToList())
+                {
+                    if (newContainers.Count(p => p.ID == item.Key) == 0)
+                    {
+                        foreach (DockerNotifier notifier in item.Value.ToList())
+                        {
                             notifier.Release();
                         }
                         item.Value.Clear();
@@ -79,24 +92,30 @@ namespace ch.darkink.docker_volume_watcher {
                         LogMessage($"Remove container {item.Key}");
                     }
                 }
-                foreach (ContainerListResponse newContainer in newContainers.Where(p => p.State == CONTAINER_STATE_RUNNING)) {
-                    if (!m_ContainerNotifier.ContainsKey(newContainer.ID)) {
+                foreach (ContainerListResponse newContainer in newContainers.Where(p => p.State == CONTAINER_STATE_RUNNING))
+                {
+                    if (!m_ContainerNotifier.ContainsKey(newContainer.ID))
+                    {
                         m_ContainerNotifier.Add(newContainer.ID, WatchContainer(newContainer));
 
                         LogMessage($"Add container {newContainer.ID} : {m_ContainerNotifier[newContainer.ID].Count()} notifier(s)");
                     }
                 }
             }
-            if (m_DockerPollingErrorCount > 100) {
+            if (m_DockerPollingErrorCount > 100)
+            {
                 m_DockerPollingErrorCount = 0;
-                if (m_OldPollingInterval == -1) {
+                if (m_OldPollingInterval == -1)
+                {
                     m_OldPollingInterval = m_PollingInterval;
                 }
                 m_PollingInterval *= 10;
                 LogMessage($"Too many errors from the docker daemon, changing the poll interval to {m_PollingInterval}ms");
                 Stop();
                 Start();
-            } else if (newContainers != null && m_OldPollingInterval != -1) {
+            }
+            else if (newContainers != null && m_OldPollingInterval != -1)
+            {
                 m_DockerPollingErrorCount = 0;
                 m_PollingInterval = m_OldPollingInterval;
                 m_OldPollingInterval = -1;
@@ -107,40 +126,52 @@ namespace ch.darkink.docker_volume_watcher {
             //}
         }
 
-        private IList<ContainerListResponse> FindContainer() {
+        private IList<ContainerListResponse> FindContainer()
+        {
             IList<ContainerListResponse> r = null;
 
-            try {
-                using (DockerClient client = new DockerClientConfiguration(new Uri(m_DockerEndpoint)).CreateClient()) {
-                    if (m_FirstConnection) {
+            try
+            {
+                using (DockerClient client = new DockerClientConfiguration(new Uri(m_DockerEndpoint)).CreateClient())
+                {
+                    if (m_FirstConnection)
+                    {
                         VersionResponse version = client.System.GetVersionAsync().Result;
                         LogMessage($"Connected to {version.Version}, api : {version.APIVersion}, arch: {version.Arch}, build: {version.BuildTime}, os: {version.Os}");
                         m_FirstConnection = false;
                     }
 
-                    try {
+                    try
+                    {
                         r = client.Containers.ListContainersAsync(
                             new ContainersListParameters { All = true }
                         ).Result;
                         m_DockerPollingErrorCount = 0;
-                    } catch (Exception ex) {
+                    }
+                    catch (Exception ex)
+                    {
                         m_DockerPollingErrorCount++;
-                        LogMessage($"Cannot connect to docker deamon: {ex.InnerException?.Message ?? ex.Message}", EventLogEntryType.Error);
+                        LogMessage($"Cannot connect to docker deamon: {ex.InnerException?.Message ?? ex.Message}", LogLevel.Error);
                     }
                 }
-            } catch (Exception ex) {
+            }
+            catch (Exception ex)
+            {
                 m_DockerPollingErrorCount++;
-                LogMessage($"Cannot connect to docker deamon: {ex.InnerException?.Message ?? ex.Message}", EventLogEntryType.Error);
+                LogMessage($"Cannot connect to docker deamon: {ex.InnerException?.Message ?? ex.Message}", LogLevel.Error);
             }
 
             return r;
         }
 
-        private IList<DockerNotifier> WatchContainer(ContainerListResponse container) {
+        private IList<DockerNotifier> WatchContainer(ContainerListResponse container)
+        {
             List<DockerNotifier> r = new List<DockerNotifier>();
-            foreach (MountPoint mount in container.Mounts) {
+            foreach (MountPoint mount in container.Mounts)
+            {
                 String hostDirectory = GetHostDirectory(mount.Source);
-                if (!String.IsNullOrEmpty(hostDirectory)) {
+                if (!String.IsNullOrEmpty(hostDirectory))
+                {
                     r.Add(new DockerNotifier(container.ID, hostDirectory, mount.Destination, (e) => { r.Remove(e); }, m_Log, m_IsIgnorefileMandatory, m_NotifierAction));
                 }
             }
@@ -148,16 +179,21 @@ namespace ch.darkink.docker_volume_watcher {
             return r;
         }
 
-        private String GetHostDirectory(String source) {
+        private String GetHostDirectory(String source)
+        {
             MatchCollection matches = m_SourceToHostPath.Matches(source);
             if (matches.Count != 1 || matches[0].Groups.Count != 3) { return null; }
             return $"{matches[0].Groups[1]}:\\{matches[0].Groups[2]}";
         }
 
-        private void CleanNotifiers() {
-            if (m_ContainerNotifier != null) {
-                foreach (var item in m_ContainerNotifier) {
-                    foreach (DockerNotifier notifier in item.Value) {
+        private void CleanNotifiers()
+        {
+            if (m_ContainerNotifier != null)
+            {
+                foreach (var item in m_ContainerNotifier)
+                {
+                    foreach (DockerNotifier notifier in item.Value)
+                    {
                         notifier.Release();
                     }
                     item.Value.Clear();
@@ -165,16 +201,9 @@ namespace ch.darkink.docker_volume_watcher {
             }
         }
 
-        private void LogMessage(String message, EventLogEntryType info = EventLogEntryType.Information) {
-            try
-            {
-                Console.WriteLine(message);
-            }
-            catch (Exception ex)
-            {
-                m_Log?.WriteEntry(ex.Message, EventLogEntryType.Error);
-            }
-            m_Log?.WriteEntry(message, info);
+        private void LogMessage(string message, LogLevel level = LogLevel.Information)
+        {
+            m_Log.Log(level, message);
         }
     }
 }
