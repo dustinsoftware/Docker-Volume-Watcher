@@ -18,7 +18,7 @@ namespace ch.darkink.docker_volume_watcher
     public class DockerNotifier
     {
 
-        private const String FILE_DVWIGNORE_EXT = ".dvwignore";
+        private const String _dockerIgnorePath = ".dockerignore";
         internal const String DOCKER_URI = "npipe://./pipe/docker_engine";
 
         internal String m_Container;
@@ -53,7 +53,7 @@ namespace ch.darkink.docker_volume_watcher
             }
             else
             {
-                LogMessage($"{container} was ignored because there is no .dvwignore file in {hostDirectory}");
+                LogMessage($"{container} was ignored because there is no .dockerignore file in {hostDirectory}");
             }
 
             m_NotifierAction = GetNotifierAction(notifierAction);
@@ -82,7 +82,7 @@ namespace ch.darkink.docker_volume_watcher
 
             if (Directory.Exists(m_HostDirectory))
             {
-                m_IgnoreFile = Path.Combine(m_HostDirectory, FILE_DVWIGNORE_EXT);
+                m_IgnoreFile = Path.Combine(m_HostDirectory, _dockerIgnorePath);
             }
 
             if (m_IgnoreFile != null)
