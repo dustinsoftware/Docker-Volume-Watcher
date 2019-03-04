@@ -7,7 +7,7 @@
     <OutputPath>bin\$(Configuration)\</OutputPath>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>dotnet-docker-volume-watcher</ToolCommandName>
-    <PackageVersion>1.0.2</PackageVersion>
+    <PackageVersion>1.0.3</PackageVersion>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject />
