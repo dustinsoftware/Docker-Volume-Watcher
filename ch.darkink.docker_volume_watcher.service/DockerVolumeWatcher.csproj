@@ -6,7 +6,8 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <OutputPath>bin\$(Configuration)\</OutputPath>
     <PackAsTool>true</PackAsTool>
-    <ToolCommandName>MyDotNetCoreTool</ToolCommandName>
+    <ToolCommandName>dotnet-docker-volume-watcher</ToolCommandName>
+    <PackageVersion>1.0.1</PackageVersion>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject />
