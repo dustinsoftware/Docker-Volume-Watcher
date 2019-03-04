@@ -113,7 +113,7 @@ namespace ch.darkink.docker_volume_watcher {
             try {
                 using (DockerClient client = new DockerClientConfiguration(new Uri(m_DockerEndpoint)).CreateClient()) {
                     if (m_FirstConnection) {
-                        VersionResponse version = client.Miscellaneous.GetVersionAsync().Result;
+                        VersionResponse version = client.System.GetVersionAsync().Result;
                         LogMessage($"Connected to {version.Version}, api : {version.APIVersion}, arch: {version.Arch}, build: {version.BuildTime}, os: {version.Os}");
                         m_FirstConnection = false;
                     }
@@ -166,7 +166,14 @@ namespace ch.darkink.docker_volume_watcher {
         }
 
         private void LogMessage(String message, EventLogEntryType info = EventLogEntryType.Information) {
-            try { Console.WriteLine(message); } catch (Exception ex) { m_Log?.WriteEntry(ex.Message, EventLogEntryType.Error); }
+            try
+            {
+                Console.WriteLine(message);
+            }
+            catch (Exception ex)
+            {
+                m_Log?.WriteEntry(ex.Message, EventLogEntryType.Error);
+            }
             m_Log?.WriteEntry(message, info);
         }
     }

@@ -1,4 +1,4 @@
-# Docker-Volume-Watcher
+# .NET Core Docker-Volume-Watcher
 
 Forked from https://github.com/Angelinsky7/Docker-Volume-Watcher
 
